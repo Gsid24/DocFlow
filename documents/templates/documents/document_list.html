@@ -34,7 +34,16 @@
             <td>{{ doc.uploaded_at|date:"d.m.Y H:i" }}</td>
             <td>{{ doc.version }}</td>
             <td>
-                <a href="{{ doc.file.url }}" target="_blank">Скачать</a>
+                <a href="{% url 'documents:download_document' doc.pk %}" 
+                class="btn btn-sm btn-success me-2">
+                    Скачать
+                </a>
+                
+                <a href="{% url 'documents:document_delete' doc.pk %}" 
+                class="btn btn-sm btn-danger"
+                onclick="return confirm('Вы действительно хотите удалить документ «{{ doc.title }}»? Это действие нельзя отменить.');">
+                    Удалить
+                </a>
             </td>
         </tr>
         {% endfor %}

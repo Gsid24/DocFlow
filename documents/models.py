@@ -1,41 +1,52 @@
 from django.db import models
 from django.contrib.auth.models import User
-import unicodedata
 import os
+import uuid
+from datetime import datetime
 
 
-def transliterate_filename(filename):
-    """Безопасная транслитерация имени файла"""
-    if not filename:
-        return "document"
-    
-    # Разделяем имя и расширение
-    name, ext = os.path.splitext(filename)
-    
-    # Транслитерируем только имя
-    name = unicodedata.normalize('NFKD', str(name))
-    name = name.encode('ASCII', 'ignore').decode('ASCII')
-    name = name.strip().replace(' ', '_').replace('__', '_')
-    
-    # Если после транслита имя пустое — оставляем оригинальное
+def get_safe_filename(original_filename: str) -> str:
+    """Генерирует безопасное имя для хранения на диске"""
+    if not original_filename:
+        return f"document_{uuid.uuid4().hex[:8]}.bin"
+
+    basename = os.path.basename(str(original_filename))
+    name, ext = os.path.splitext(basename)
+
+    # Простая транслитерация
+    name = name.encode('ASCII', 'ignore').decode('ASCII').strip()
+    name = ''.join(c for c in name if c.isalnum() or c in ('-', '_', '.'))
+    name = name.replace(' ', '_').replace('__', '_')
+
     if not name:
         name = "document"
-    
-    return name + ext
+
+    unique_name = f"{name}_{uuid.uuid4().hex[:8]}"
+    return unique_name + ext.lower()
+
+
+def document_upload_to(instance, filename: str) -> str:
+    """Callable для upload_to"""
+    safe_name = get_safe_filename(filename)
+    now = datetime.now()
+    return f'documents/{now.year}/{now.month:02d}/{now.day:02d}/{safe_name}'
 
 
 class Document(models.Model):
-    """Основная модель документа"""
-    
     title = models.CharField("Название документа", max_length=255)
     
     file = models.FileField(
-        "Файл", 
-        upload_to='documents/%Y/%m/%d/',
+        "Файл",
+        upload_to=document_upload_to,
         max_length=500
     )
     
-    original_filename = models.CharField("Оригинальное имя файла", max_length=255, blank=True)
+    original_filename = models.CharField(
+        "Оригинальное имя файла", 
+        max_length=255, 
+        blank=True,
+        editable=False
+    )
     
     uploaded_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='uploaded_documents')
     uploaded_at = models.DateTimeField("Дата загрузки", auto_now_add=True)
@@ -52,10 +63,19 @@ class Document(models.Model):
         return f"{self.title} ({self.version})"
 
     def save(self, *args, **kwargs):
+        # Сохраняем оригинальное имя при первой загрузке
         if self.file and not self.original_filename:
-            self.original_filename = self.file.name
-            # Транслитерируем имя файла
-            if self.file.name:
-                self.file.name = transliterate_filename(self.file.name)
+            self.original_filename = os.path.basename(self.file.name)
         
         super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        """Переопределяем удаление — удаляем и файл с диска"""
+        if self.file:
+            try:
+                if self.file.storage.exists(self.file.name):
+                    self.file.delete(save=False)  # удаляем файл
+            except Exception as e:
+                print(f"Ошибка при удалении файла {self.file.name}: {e}")
+        
+        super().delete(*args, **kwargs)
