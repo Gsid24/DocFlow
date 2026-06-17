@@ -9,7 +9,9 @@ https://docs.djangoproject.com/en/6.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
-
+import os
+import unicodedata
+from django.utils.encoding import force_str
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -117,3 +119,17 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# Автоматическая транслитерация русских имён файлов
+def translit_filename(filename):
+    name = force_str(filename)
+    # Транслитерация + замена пробелов
+    name = unicodedata.normalize('NFKD', name).encode('ASCII', 'ignore').decode('ASCII')
+    name = name.replace(' ', '_')
+    return name
+
+# Переопределяем поведение FileField
+from django.db.models.fields.files import FieldFile
+FieldFile.__str__ = lambda self: translit_filename(self.name) if self else ''
