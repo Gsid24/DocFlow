@@ -4,6 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
 from django.views import View
+from .forms import DocumentUploadForm
 
 import os
 import mimetypes
@@ -12,12 +13,19 @@ from .models import Document
 
 
 def document_list(request):
-    """Список всех документов"""
-    documents = Document.objects.all().order_by('-uploaded_at')
+    """Список документов"""
+    show_all = request.GET.get('all', '0') == '1'
+    
+    if show_all and request.user.is_staff:
+        documents = Document.objects.all().order_by('-uploaded_at')
+    else:
+        documents = Document.objects.filter(uploaded_by=request.user).order_by('-uploaded_at')
     
     context = {
         'documents': documents,
-        'title': 'Документы'
+        'title': 'Документы',
+        'show_all': show_all,
+        'is_staff': request.user.is_staff,
     }
     return render(request, 'documents/document_list.html', context)
 
@@ -66,3 +74,24 @@ class DocumentDeleteView(LoginRequiredMixin, View):
         
         messages.success(request, f'Документ "{title}" успешно удалён.')
         return redirect('documents:document_list')
+
+@login_required
+def document_upload(request):
+    """Загрузка нового документа"""
+    if request.method == 'POST':
+        form = DocumentUploadForm(request.POST, request.FILES)
+        if form.is_valid():
+            document = form.save(commit=False)
+            document.uploaded_by = request.user
+            # original_filename заполнится автоматически в модели
+            document.save()
+            messages.success(request, f'Документ "{document.title}" успешно загружен.')
+            return redirect('documents:document_list')
+    else:
+        form = DocumentUploadForm(initial={'version': '1.0'})
+
+    context = {
+        'form': form,
+        'title': 'Загрузка нового документа'
+    }
+    return render(request, 'documents/document_upload.html', context)    

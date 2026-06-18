@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ title }}</title>
     
-    <!-- Tailwind CSS (Play CDN) - удобно для внутреннего инструмента -->
+    <!-- Tailwind CSS (Play CDN) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Roboto+Mono:wght@400;500&amp;display=swap');
@@ -63,7 +63,8 @@
                 <p class="text-gray-500 mt-1">Система электронного документооборота</p>
             </div>
             
-            <a href="{% url 'admin:documents_document_add' %}" 
+            <!-- Кнопка ведёт на нашу форму -->
+            <a href="{% url 'documents:document_upload' %}" 
                class="inline-flex items-center px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -105,7 +106,7 @@
                             </span>
                         </td>
                         
-                        <!-- === КНОПКА С ТРЕМЯ ТОЧКАМИ === -->
+                        <!-- Кнопка с тремя точками -->
                         <td class="px-6 py-4 text-right">
                             <div class="relative inline-block text-left dropdown">
                                 <button 
@@ -119,7 +120,6 @@
                                 
                                 <!-- Выпадающее меню -->
                                 <div class="dropdown-menu hidden absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1 overflow-hidden">
-                                    
                                     <!-- Скачать -->
                                     <a href="{% url 'documents:download_document' doc.pk %}" 
                                        class="menu-item flex items-center px-4 py-2.5 text-sm text-gray-700 hover:text-gray-900">
@@ -159,29 +159,23 @@
                 </svg>
             </div>
             <h3 class="text-lg font-medium text-gray-900">Пока нет загруженных документов</h3>
-            <p class="text-gray-500 mt-1">Загрузите первый документ через админ-панель</p>
+            <p class="text-gray-500 mt-1">Нажмите кнопку «Загрузить документ» выше</p>
         </div>
         {% endif %}
     </div>
 
     <script>
-        // Функция переключения меню
         function toggleDropdown(button) {
             const dropdown = button.closest('.dropdown');
             const menu = dropdown.querySelector('.dropdown-menu');
             
-            // Закрываем все остальные открытые меню
             document.querySelectorAll('.dropdown-menu').forEach(m => {
-                if (m !== menu) {
-                    m.classList.add('hidden');
-                }
+                if (m !== menu) m.classList.add('hidden');
             });
             
-            // Переключаем текущее
             menu.classList.toggle('hidden');
         }
         
-        // Закрытие меню при клике вне его
         document.addEventListener('click', function(e) {
             if (!e.target.closest('.dropdown')) {
                 document.querySelectorAll('.dropdown-menu').forEach(menu => {
@@ -190,23 +184,12 @@
             }
         });
         
-        // Закрытие меню по Escape
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
                 document.querySelectorAll('.dropdown-menu').forEach(menu => {
                     menu.classList.add('hidden');
                 });
             }
-        });
-        
-        // Инициализация Tailwind (опционально)
-        function initTailwind() {
-            // Можно добавить кастомные цвета/конфиг при необходимости
-        }
-        
-        // Запуск
-        document.addEventListener('DOMContentLoaded', function() {
-            initTailwind();
         });
     </script>
 </body>
