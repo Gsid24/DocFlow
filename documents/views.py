@@ -1,15 +1,14 @@
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from django.http import FileResponse, Http404
 from django.contrib.auth.decorators import login_required
-from django.views.generic.edit import DeleteView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
-from django.urls import reverse_lazy
+from django.views import View
 
 import os
 import mimetypes
 
-from .models import Document   # ← Важно! Добавь эту строку
+from .models import Document
 
 
 def document_list(request):
@@ -49,19 +48,21 @@ def download_document(request, pk):
     return response
 
 
-class DocumentDeleteView(LoginRequiredMixin, DeleteView):
-    """Удаление документа"""
-    model = Document
-    template_name = 'documents/document_confirm_delete.html'
-    success_url = reverse_lazy('documents:document_list')
+class DocumentDeleteView(LoginRequiredMixin, View):
+    """Простое удаление документа без промежуточной страницы"""
     
-    def get_queryset(self):
-        """Только свои документы или staff"""
-        qs = super().get_queryset()
-        if self.request.user.is_staff:
-            return qs
-        return qs.filter(uploaded_by=self.request.user)
-    
-    def form_valid(self, form):
-        messages.success(self.request, f'Документ "{self.object.title}" успешно удалён.')
-        return super().form_valid(form)
+    def get(self, request, pk):
+        """GET — сразу удаляем (с проверкой)"""
+        document = get_object_or_404(Document, pk=pk)
+        
+        # Проверка прав
+        if document.uploaded_by != request.user and not request.user.is_staff:
+            messages.error(request, "У вас нет прав на удаление этого документа.")
+            return redirect('documents:document_list')
+        
+        # Безопасное удаление (файл + запись в БД)
+        title = document.title
+        document.delete()  # вызовет переопределённый delete() в модели
+        
+        messages.success(request, f'Документ "{title}" успешно удалён.')
+        return redirect('documents:document_list')
